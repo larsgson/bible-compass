@@ -1,0 +1,45 @@
+# Triumph Over Death Category
+level = "category"
+id = "08"
+title = "Triumph Over Death"
+beg = 36
+count = 7
+
+[image]
+filename = "000-07.png"
+
+# Stories in this category
+[[stories]]
+id = "36"
+title = "The Transfiguration"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-36-01.jpg"
+
+[[stories]]
+id = "37"
+title = "Jesus Raises Lazarus from the Dead"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-37-01.jpg"
+
+[[stories]]
+id = "38"
+title = "Jesus Is Betrayed"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-38-01.jpg"
+
+[[stories]]
+id = "39"
+title = "Jesus Is Put on Trial"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-39-01.jpg"
+
+[[stories]]
+id = "40"
+title = "Jesus Is Crucified"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-40-01.jpg"
+
+[[stories]]
+id = "41"
+title = "God Raises Jesus from the Dead"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-41-01.jpg"
+
+[[stories]]
+id = "42"
+title = "Jesus Returns to Heaven"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-42-01.jpg"

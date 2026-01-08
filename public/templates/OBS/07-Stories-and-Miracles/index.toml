@@ -1,0 +1,55 @@
+# Stories and Miracles Category
+level = "category"
+id = "07"
+title = "Stories and Miracles"
+beg = 27
+count = 9
+
+[image]
+filename = "42_Lk_08_01.png"
+
+# Stories in this category
+[[stories]]
+id = "27"
+title = "The Story of the Good Samaritan"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-27-01.jpg"
+
+[[stories]]
+id = "28"
+title = "The Rich Young Ruler"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-28-01.jpg"
+
+[[stories]]
+id = "29"
+title = "The Story of the Unmerciful Servant"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-29-01.jpg"
+
+[[stories]]
+id = "30"
+title = "Jesus Feeds Thousands of People"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-30-01.jpg"
+
+[[stories]]
+id = "31"
+title = "Jesus Walks on Water"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-31-01.jpg"
+
+[[stories]]
+id = "32"
+title = "Jesus Heals a Demon-Possessed Man & a Sick Woman"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-32-01.jpg"
+
+[[stories]]
+id = "33"
+title = "The Story of the Farmer"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-33-01.jpg"
+
+[[stories]]
+id = "34"
+title = "Jesus Teaches Other Stories"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-34-01.jpg"
+
+[[stories]]
+id = "35"
+title = "The Story of the Compassionate Father"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-35-01.jpg"

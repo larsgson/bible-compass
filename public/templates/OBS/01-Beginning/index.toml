@@ -1,0 +1,25 @@
+# Beginning Category
+level = "category"
+id = "01"
+title = "Beginning"
+beg = 1
+count = 3
+
+[image]
+filename = "000-01.png"
+
+# Stories in this category
+[[stories]]
+id = "01"
+title = "The Creation"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-01-01.jpg"
+
+[[stories]]
+id = "02"
+title = "Sin Enters the World"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-02-01.jpg"
+
+[[stories]]
+id = "03"
+title = "The Flood"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-03-01.jpg"

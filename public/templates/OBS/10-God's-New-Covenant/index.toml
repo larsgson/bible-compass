@@ -1,0 +1,25 @@
+# God's New Covenant Category
+level = "category"
+id = "10"
+title = "God's New Covenant"
+beg = 48
+count = 3
+
+[image]
+filename = "66_Re_21_01.png"
+
+# Stories in this category
+[[stories]]
+id = "48"
+title = "Jesus Is the Promised Messiah"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-48-01.jpg"
+
+[[stories]]
+id = "49"
+title = "God's New Covenant"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-49-01.jpg"
+
+[[stories]]
+id = "50"
+title = "Jesus Returns"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-50-01.jpg"

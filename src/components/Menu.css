@@ -1,0 +1,148 @@
+.menu {
+  background-color: #1a1a1a;
+  border-bottom: 1px solid #333;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.menu-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+}
+
+.menu-brand h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.menu-toggle {
+  display: none;
+  flex-direction: column;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.hamburger {
+  display: block;
+  width: 25px;
+  height: 3px;
+  background-color: #fff;
+  margin: 3px 0;
+  transition: 0.3s;
+}
+
+.menu-items {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 1rem;
+}
+
+.menu-items li {
+  margin: 0;
+}
+
+.menu-link {
+  background: none;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-radius: 4px;
+}
+
+.menu-link:hover {
+  background-color: #333;
+  border-color: transparent;
+}
+
+.menu-link.active {
+  background-color: #646cff;
+  color: #fff;
+}
+
+@media (prefers-color-scheme: light) {
+  .menu {
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .menu-brand h2 {
+    color: #213547;
+  }
+
+  .hamburger {
+    background-color: #213547;
+  }
+
+  .menu-link {
+    color: #213547;
+  }
+
+  .menu-link:hover {
+    background-color: #e9e9e9;
+  }
+
+  .menu-link.active {
+    background-color: #646cff;
+    color: #fff;
+  }
+}
+
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: flex;
+  }
+
+  .menu-items {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #333;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    gap: 0;
+  }
+
+  .menu-items.open {
+    max-height: 300px;
+  }
+
+  .menu-items li {
+    border-top: 1px solid #333;
+  }
+
+  .menu-link {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 1rem;
+    border-radius: 0;
+  }
+
+  @media (prefers-color-scheme: light) {
+    .menu-items {
+      background-color: #f9f9f9;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .menu-items li {
+      border-top: 1px solid #ddd;
+    }
+  }
+}

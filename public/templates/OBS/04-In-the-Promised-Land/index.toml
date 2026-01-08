@@ -1,0 +1,35 @@
+# In the Promised Land Category
+level = "category"
+id = "04"
+title = "In the Promised Land"
+beg = 15
+count = 5
+
+[image]
+filename = "00-03a.png"
+
+# Stories in this category
+[[stories]]
+id = "15"
+title = "The Promised Land"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-15-01.jpg"
+
+[[stories]]
+id = "16"
+title = "The Deliverers"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-16-01.jpg"
+
+[[stories]]
+id = "17"
+title = "God's Covenant with David"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-17-01.jpg"
+
+[[stories]]
+id = "18"
+title = "The Divided Kingdom"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-18-01.jpg"
+
+[[stories]]
+id = "19"
+title = "The Prophets"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-19-01.jpg"

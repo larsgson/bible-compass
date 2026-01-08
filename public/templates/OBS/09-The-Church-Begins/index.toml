@@ -1,0 +1,35 @@
+# The Church Begins Category
+level = "category"
+id = "09"
+title = "The Church Begins"
+beg = 43
+count = 5
+
+[image]
+filename = "00-08a.png"
+
+# Stories in this category
+[[stories]]
+id = "43"
+title = "The Church Begins"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-43-01.jpg"
+
+[[stories]]
+id = "44"
+title = "Peter and John Heal a Beggar"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-44-01.jpg"
+
+[[stories]]
+id = "45"
+title = "Stephen and Philip"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-45-01.jpg"
+
+[[stories]]
+id = "46"
+title = "Saul Becomes a Follower of Jesus"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-46-01.jpg"
+
+[[stories]]
+id = "47"
+title = "Paul and Silas in Philippi"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-47-01.jpg"

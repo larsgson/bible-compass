@@ -1,0 +1,35 @@
+# Patriarchs Category
+level = "category"
+id = "02"
+title = "Patriarchs"
+beg = 4
+count = 5
+
+[image]
+filename = "00-01c.png"
+
+# Stories in this category
+[[stories]]
+id = "04"
+title = "God's Covenant with Abraham"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-04-01.jpg"
+
+[[stories]]
+id = "05"
+title = "The Son of Promise"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-05-01.jpg"
+
+[[stories]]
+id = "06"
+title = "God Provides for Isaac"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-06-01.jpg"
+
+[[stories]]
+id = "07"
+title = "God Blesses Jacob"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-07-01.jpg"
+
+[[stories]]
+id = "08"
+title = "God Saves Joseph and His Family"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-08-01.jpg"

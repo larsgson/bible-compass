@@ -1,0 +1,25 @@
+# Exile, Return and waiting on the Messiah Category
+level = "category"
+id = "05"
+title = "Exile, Return and waiting on the Messiah"
+beg = 20
+count = 3
+
+[image]
+filename = "000-06.png"
+
+# Stories in this category
+[[stories]]
+id = "20"
+title = "The Exile and Return"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-20-01.jpg"
+
+[[stories]]
+id = "21"
+title = "God Promises the Messiah"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-21-01.jpg"
+
+[[stories]]
+id = "22"
+title = "The Birth of John"
+image = "https://cdn.door43.org/obs/jpg/360px/obs-en-22-01.jpg"
