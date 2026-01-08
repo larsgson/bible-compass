@@ -1,9 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import useLanguage from "../hooks/useLanguage";
 
-// Track which testament warnings we've already shown
-const testamentWarningsShown = new Set();
-
 /**
  * Parse a Bible reference string into book, chapter, and verse range
  * Examples: "GEN 1:1-5", "MAT 5:3", "REV 21:1-4", "GEN 1:20,22" (comma = non-consecutive verses)
@@ -13,10 +10,7 @@ const parseReference = (reference) => {
 
   // Match pattern: BOOK CHAPTER:VERSES where VERSES can be "1", "1-5", or "1,3,5"
   const match = reference.match(/^([A-Z0-9]+)\s+(\d+):(.+)$/i);
-  if (!match) {
-    console.log(`[parseReference] ✗ Failed to match pattern for: ${reference}`);
-    return null;
-  }
+  if (!match) return null;
 
   const book = match[1].toUpperCase();
   const chapter = parseInt(match[2], 10);
@@ -99,18 +93,10 @@ const getTestament = (bookCode) => {
  * @param {Array} verses - Array of specific verse numbers (if comma-separated)
  */
 const extractVerses = (verseArray, verseStart, verseEnd, verses = null) => {
-  if (!verseArray) {
-    console.log(`[extractVerses] ✗ verseArray is null/undefined`);
-    return null;
-  }
+  if (!verseArray) return null;
 
   // If it's a string (old format), return it as-is
-  if (typeof verseArray === "string") {
-    console.log(
-      `[extractVerses] Got string format, returning as-is (${verseArray.length} chars)`,
-    );
-    return verseArray;
-  }
+  if (typeof verseArray === "string") return verseArray;
 
   // If it's an array (new format from DBT API)
   if (Array.isArray(verseArray)) {
@@ -118,40 +104,23 @@ const extractVerses = (verseArray, verseStart, verseEnd, verses = null) => {
 
     // Handle comma-separated verses (specific verse numbers)
     if (verses && Array.isArray(verses)) {
-      console.log(
-        `[extractVerses] Processing array with ${verseArray.length} verses, looking for specific verses: ${verses.join(", ")}`,
-      );
       selectedVerses = verseArray.filter((v) => verses.includes(v.num));
     } else {
       // Handle range
-      console.log(
-        `[extractVerses] Processing array with ${verseArray.length} verses, looking for verses ${verseStart}-${verseEnd}`,
-      );
       selectedVerses = verseArray.filter(
         (v) => v.num >= verseStart && v.num <= verseEnd,
       );
     }
 
-    console.log(`[extractVerses] Found ${selectedVerses.length} verses`);
-
-    if (selectedVerses.length === 0) {
-      console.log(`[extractVerses] ✗ No verses found`);
-      return null;
-    }
+    if (selectedVerses.length === 0) return null;
 
     // Format without verse numbers
-    const result = selectedVerses
+    return selectedVerses
       .map((v) => v.text)
       .join(" ")
       .trim();
-
-    console.log(
-      `[extractVerses] ✓ Formatted result: ${result.length} characters`,
-    );
-    return result;
   }
 
-  console.log(`[extractVerses] ✗ Unknown format:`, typeof verseArray);
   return null;
 };
 
@@ -164,12 +133,9 @@ function BibleText({ reference, className = "" }) {
     selectedLanguage,
   } = useLanguage();
   const [displayText, setDisplayText] = useState("");
-  const [bookRef, setBookRef] = useState("");
-  const [chapterRef, setChapterRef] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const warningKeyRef = useRef(null);
-  const textLoadAttemptedRef = useRef(new Set()); // Track attempted text loads
+  const textLoadAttemptedRef = useRef(new Set());
 
   useEffect(() => {
     const fetchBibleText = async () => {
@@ -189,8 +155,6 @@ function BibleText({ reference, className = "" }) {
       }
 
       const { book, chapter, verseStart, verseEnd, verses } = parsed;
-      setBookRef(book);
-      setChapterRef(chapter);
       const testament = getTestament(book);
       const chapterKey = `${book}.${chapter}`;
 
@@ -198,14 +162,6 @@ function BibleText({ reference, className = "" }) {
       if (selectedLanguage && languageData && languageData[selectedLanguage]) {
         const langData = languageData[selectedLanguage][testament];
         if (!langData) {
-          // Show warning once per language-testament combination
-          const warningKey = `${selectedLanguage}-${testament}`;
-          if (!testamentWarningsShown.has(warningKey)) {
-            console.log(
-              `[BibleText] ⚠️ No ${testament.toUpperCase()} data available for language "${selectedLanguage}" - verses will be empty`,
-            );
-            testamentWarningsShown.add(warningKey);
-          }
           setDisplayText("");
           setError(null);
           setLoading(false);
@@ -245,17 +201,11 @@ function BibleText({ reference, className = "" }) {
               verseEnd,
               verses,
             );
-            if (extractedVerses) {
-              setDisplayText(extractedVerses);
-            } else {
-              setDisplayText("");
-            }
+            setDisplayText(extractedVerses || "");
           } else {
-            console.log(`[BibleText] ✗ API returned null for ${chapterKey}`);
             setError("Could not load Bible text");
           }
         } catch (err) {
-          console.log(`[BibleText] ✗ Error loading ${chapterKey}:`, err);
           setError("Error loading Bible text");
         } finally {
           setLoading(false);

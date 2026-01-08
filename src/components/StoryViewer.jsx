@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import "./StoryViewer.css";
-import SectionGrid from "./SectionGrid";
 import BibleText from "./BibleText";
 import { parseMarkdownIntoSections } from "../utils/markdownParser";
 import useLanguage from "../hooks/useLanguage";
@@ -140,26 +139,19 @@ function StoryViewer({ storyData, onBack }) {
     useLanguage();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState("sections"); // 'sections', 'vertical-sections', 'sequential'
   const [parsedData, setParsedData] = useState(null);
+  const [error, setError] = useState(null);
   const [chapterCount, setChapterCount] = useState(0);
   const [audioPlaylistData, setAudioPlaylistData] = useState([]);
 
   useEffect(() => {
-    console.log(`[StoryViewer] useEffect[storyData] triggered`);
     loadStory();
   }, [storyData]);
 
   // Reparse when chapter count changes (not on every chapterText update)
   useEffect(() => {
     const newCount = Object.keys(chapterText).length;
-    console.log(
-      `[StoryViewer] useEffect[chapterText] triggered - newCount: ${newCount}, chapterCount: ${chapterCount}, hasContent: ${!!content}`,
-    );
     if (content && newCount > 0 && newCount !== chapterCount) {
-      console.log(
-        `[StoryViewer] Reparsing with ${newCount} cached chapters (was ${chapterCount})`,
-      );
       const parsed = parseMarkdownIntoSections(content, chapterText);
       setParsedData(parsed);
       setChapterCount(newCount);
@@ -167,7 +159,6 @@ function StoryViewer({ storyData, onBack }) {
   }, [chapterText]);
 
   const loadStory = async () => {
-    console.log(`[StoryViewer] loadStory called for: ${storyData.path}`);
     setLoading(true);
     try {
       const response = await fetch(`/templates/OBS/${storyData.path}`);
@@ -187,27 +178,22 @@ function StoryViewer({ storyData, onBack }) {
       }
 
       setContent(text);
-      console.log(
-        `[StoryViewer] Content loaded, parsing with ${Object.keys(chapterText).length} cached chapters`,
-      );
 
       // Parse content into sections, passing chapter text cache for Bible text replacement
       const parsed = parseMarkdownIntoSections(text, chapterText);
       setParsedData(parsed);
       setChapterCount(Object.keys(chapterText).length);
 
-      // Default to vertical sections view if sections are available
+      // Collect and process all references for audio playlist
       if (parsed && parsed.sections && parsed.sections.length > 0) {
-        setViewMode("vertical-sections");
-        // Collect and process all references for audio playlist
         collectAudioPlaylistData(parsed.sections);
-      } else {
-        setViewMode("sequential");
       }
-    } catch (error) {
+
+      setError(null);
+    } catch (err) {
       setContent("");
       setParsedData(null);
-      setViewMode("error");
+      setError(err.message);
     }
     setLoading(false);
   };
@@ -332,76 +318,12 @@ function StoryViewer({ storyData, onBack }) {
     }
   }, [parsedData, audioUrls, selectedLanguage]);
 
-  const renderContent = () => {
-    const lines = content.split("\n");
-    const elements = [];
-    let key = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-
-      if (line.startsWith("<<<STORY:")) {
-        continue;
-      }
-
-      if (line.startsWith("<<<REF:")) {
-        const ref = line.match(/<<<REF:\s*(.+)>>>/);
-        if (ref) {
-          elements.push(
-            <div key={`ref-${key++}`} className="story-reference">
-              {ref[1]}
-            </div>,
-          );
-        }
-        continue;
-      }
-
-      if (line.startsWith("![Image](")) {
-        const match = line.match(/!\[Image\]\((.+)\)/);
-        if (match) {
-          elements.push(
-            <img
-              key={`img-${key++}`}
-              src={match[1]}
-              alt="Story illustration"
-              className="story-image"
-            />,
-          );
-        }
-        continue;
-      }
-
-      if (line.startsWith("#")) {
-        const level = line.match(/^#+/)[0].length;
-        const text = line.replace(/^#+\s*/, "");
-        elements.push(
-          React.createElement(
-            `h${level}`,
-            { key: `heading-${key++}`, className: "story-heading" },
-            text,
-          ),
-        );
-        continue;
-      }
-
-      if (line !== "") {
-        elements.push(
-          <p key={`p-${key++}`} className="story-paragraph">
-            {line}
-          </p>,
-        );
-      }
-    }
-
-    return elements;
-  };
-
   if (loading) {
     return <div className="story-loading">Loading story...</div>;
   }
 
   // Error state - story not found
-  if (viewMode === "error") {
+  if (error) {
     return (
       <div className="story-viewer">
         <div className="story-header">
@@ -432,164 +354,156 @@ function StoryViewer({ storyData, onBack }) {
     );
   }
 
-  // Vertical sections view - display all sections in a list
-  if (
-    viewMode === "vertical-sections" &&
-    parsedData &&
-    parsedData.sections.length > 0
-  ) {
+  // Display sections
+  if (!parsedData || !parsedData.sections || parsedData.sections.length === 0) {
     return (
       <div className="story-viewer">
         <div className="story-header">
           <button className="back-button" onClick={onBack}>
             ← Back to Stories
           </button>
-          <h1 className="story-title">{parsedData.title || storyData.title}</h1>
+          <h1 className="story-title">{storyData.title}</h1>
         </div>
-        <div className="story-content story-sections-vertical">
-          {/* Display consolidated audio playlist data before sections */}
-          {audioPlaylistData.length > 0 &&
-            (() => {
-              // Group entries by audio URL
-              const groupedByAudio = [];
-              let currentGroup = null;
-
-              audioPlaylistData.forEach((entry) => {
-                if (!currentGroup || currentGroup.audioUrl !== entry.audioUrl) {
-                  // Start new group
-                  currentGroup = {
-                    audioUrl: entry.audioUrl,
-                    audioFile: entry.audioFile,
-                    entries: [],
-                  };
-                  groupedByAudio.push(currentGroup);
-                }
-                currentGroup.entries.push(entry);
-              });
-
-              return (
-                <div
-                  className="audio-playlist-info"
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: "0.85em",
-                    padding: "1em",
-                    backgroundColor: "#f5f5f5",
-                    marginBottom: "2em",
-                    borderRadius: "4px",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: "bold",
-                      marginBottom: "1em",
-                      fontSize: "1.1em",
-                    }}
-                  >
-                    Audio Playlist Data (Grouped by Audio File):
-                  </div>
-                  {groupedByAudio.map((group, groupIndex) => (
-                    <div key={groupIndex} style={{ marginBottom: "2em" }}>
-                      <div
-                        style={{
-                          color: "#cc0066",
-                          fontWeight: "bold",
-                          marginBottom: "0.5em",
-                          borderBottom: "2px solid #cc0066",
-                          paddingBottom: "0.3em",
-                        }}
-                      >
-                        Audio: {group.audioFile}
-                      </div>
-                      {group.entries.map((entry, entryIndex) => (
-                        <div
-                          key={entryIndex}
-                          style={{ marginBottom: "1.5em", paddingLeft: "1em" }}
-                        >
-                          <div
-                            style={{
-                              color: "#0066cc",
-                              fontWeight: "bold",
-                              marginBottom: "0.3em",
-                            }}
-                          >
-                            Section {entry.sectionNum} - {entry.reference}
-                          </div>
-                          {entry.timingData ? (
-                            <div style={{ color: "#333" }}>
-                              {JSON.stringify(entry.timingData, null, 2)}
-                            </div>
-                          ) : (
-                            <div style={{ color: "#999", fontStyle: "italic" }}>
-                              (No timing data available)
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-
-          {parsedData.sections.map((section, index) => (
-            <div key={index} className="story-section">
-              <div className="story-section-image-wrapper">
-                {section.imageUrl && (
-                  <img
-                    src={section.imageUrl}
-                    alt={`Section ${index + 1}`}
-                    className="story-image"
-                  />
-                )}
-                {section.reference && (
-                  <div className="story-section-ref-overlay">
-                    {section.reference}
-                  </div>
-                )}
-              </div>
-              {section.reference && (
-                <BibleText
-                  reference={section.reference}
-                  className="story-reference-main"
-                />
-              )}
-              {section.text && section.text.trim() && (
-                <div className="story-section-text">
-                  {section.text.split("\n").map((line, lineIndex) => {
-                    const trimmedLine = line.trim();
-                    if (!trimmedLine) return null;
-                    return (
-                      <p key={lineIndex} className="story-paragraph">
-                        {trimmedLine}
-                      </p>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="story-content">
+          <p>No sections available</p>
         </div>
       </div>
     );
   }
 
-  // Fallback: Sequential view (original rendering)
   return (
     <div className="story-viewer">
       <div className="story-header">
         <button className="back-button" onClick={onBack}>
           ← Back to Stories
         </button>
-        <h1 className="story-title">{storyData.title}</h1>
+        <h1 className="story-title">{parsedData.title || storyData.title}</h1>
       </div>
-      {storyData.image && (
-        <div className="story-hero-image">
-          <img src={storyData.image} alt={storyData.title} />
-        </div>
-      )}
-      <div className="story-content">{renderContent()}</div>
+      <div className="story-content story-sections-vertical">
+        {/* Display consolidated audio playlist data before sections */}
+        {audioPlaylistData.length > 0 &&
+          (() => {
+            // Group entries by audio URL
+            const groupedByAudio = [];
+            let currentGroup = null;
+
+            audioPlaylistData.forEach((entry) => {
+              if (!currentGroup || currentGroup.audioUrl !== entry.audioUrl) {
+                // Start new group
+                currentGroup = {
+                  audioUrl: entry.audioUrl,
+                  audioFile: entry.audioFile,
+                  entries: [],
+                };
+                groupedByAudio.push(currentGroup);
+              }
+              currentGroup.entries.push(entry);
+            });
+
+            return (
+              <div
+                className="audio-playlist-info"
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "0.85em",
+                  padding: "1em",
+                  backgroundColor: "#f5f5f5",
+                  marginBottom: "2em",
+                  borderRadius: "4px",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: "bold",
+                    marginBottom: "1em",
+                    fontSize: "1.1em",
+                  }}
+                >
+                  Audio Playlist Data (Grouped by Audio File):
+                </div>
+                {groupedByAudio.map((group, groupIndex) => (
+                  <div key={groupIndex} style={{ marginBottom: "2em" }}>
+                    <div
+                      style={{
+                        color: "#cc0066",
+                        fontWeight: "bold",
+                        marginBottom: "0.5em",
+                        borderBottom: "2px solid #cc0066",
+                        paddingBottom: "0.3em",
+                      }}
+                    >
+                      Audio: {group.audioFile}
+                    </div>
+                    {group.entries.map((entry, entryIndex) => (
+                      <div
+                        key={entryIndex}
+                        style={{ marginBottom: "1.5em", paddingLeft: "1em" }}
+                      >
+                        <div
+                          style={{
+                            color: "#0066cc",
+                            fontWeight: "bold",
+                            marginBottom: "0.3em",
+                          }}
+                        >
+                          Section {entry.sectionNum} - {entry.reference}
+                        </div>
+                        {entry.timingData ? (
+                          <div style={{ color: "#333" }}>
+                            {JSON.stringify(entry.timingData, null, 2)}
+                          </div>
+                        ) : (
+                          <div style={{ color: "#999", fontStyle: "italic" }}>
+                            (No timing data available)
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+        {parsedData.sections.map((section, index) => (
+          <div key={index} className="story-section">
+            <div className="story-section-image-wrapper">
+              {section.imageUrl && (
+                <img
+                  src={section.imageUrl}
+                  alt={`Section ${index + 1}`}
+                  className="story-image"
+                />
+              )}
+              {section.reference && (
+                <div className="story-section-ref-overlay">
+                  {section.reference}
+                </div>
+              )}
+            </div>
+            {section.reference && (
+              <BibleText
+                reference={section.reference}
+                className="story-reference-main"
+              />
+            )}
+            {section.text && section.text.trim() && (
+              <div className="story-section-text">
+                {section.text.split("\n").map((line, lineIndex) => {
+                  const trimmedLine = line.trim();
+                  if (!trimmedLine) return null;
+                  return (
+                    <p key={lineIndex} className="story-paragraph">
+                      {trimmedLine}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

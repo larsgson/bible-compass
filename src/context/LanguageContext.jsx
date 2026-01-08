@@ -224,10 +224,6 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
           updateState({
             languageData: newLanguageData,
           });
-          console.log(
-            `[LanguageContext] ✓ Loaded language data for: ${langCode}`,
-          );
-          return langData;
         }
 
         return null;
@@ -316,9 +312,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
                       testamentData.distinctId = distinctId;
                       testamentData.filesetId = filesetId;
                       testamentData.basePath = `/ALL-langs-data/${testament}/${category}/${langCode}/${distinctId}`;
-                      console.log(
-                        `[LanguageContext] Text fileset for ${langCode}-${testament}: ${filesetId} (from ${filesetData.t})`,
-                      );
+                      break;
                       break; // Found text data
                     }
                   } catch (err) {
@@ -364,9 +358,6 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
                       if (audioFilesetId) {
                         testamentData.audioFilesetId = audioFilesetId;
                         testamentData.audioCategory = category;
-                        console.log(
-                          `[LanguageContext] Audio fileset for ${langCode}-${testament}: ${audioFilesetId} (from ${filesetData.a})`,
-                        );
                         break; // Found audio data
                       }
                     }
@@ -393,10 +384,6 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
           updateState({
             languageData: newLanguageData,
           });
-          console.log(
-            `[LanguageContext] ✓ Loaded language data for: ${langCode}`,
-          );
-          return langData;
         }
 
         return null;
@@ -559,7 +546,6 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
       }
 
       // Load all chapters in background
-      console.log(`Preloading ${chaptersToLoad.size} Bible chapters...`);
       const ntBooks = [
         "MAT",
         "MRK",
@@ -604,9 +590,6 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
-      console.log(
-        `✓ Preloading complete - ${Object.keys(chapterTextRef.current).length} chapters cached`,
-      );
     } catch (error) {
       console.error("Error preloading Bible references:", error);
       preloadStartedRef.current = false; // Reset on error so it can retry
@@ -720,10 +703,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
                 });
               }
             } catch (timecodeError) {
-              console.log(
-                `[LanguageContext] Failed to load timing file for ${timingCacheKey}:`,
-                timecodeError,
-              );
+              // Silently continue without timing data
             }
           }
         }
@@ -847,9 +827,6 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
   // Sync external language prop changes with state
   useEffect(() => {
     if (initialLanguage && initialLanguage !== state.selectedLanguage) {
-      console.log(
-        `[LanguageContext] Language changed from ${state.selectedLanguage} to ${initialLanguage}`,
-      );
       updateState({ selectedLanguage: initialLanguage });
 
       // Load language data if not already loaded
