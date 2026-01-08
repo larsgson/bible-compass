@@ -4,6 +4,7 @@ import NavigationGrid from "./components/NavigationGrid";
 import StoryViewer from "./components/StoryViewer";
 import LanguageSelector from "./components/LanguageSelector";
 import { LanguageProvider } from "./context/LanguageContext";
+import { MediaPlayerProvider } from "./context/MediaPlayerContext";
 
 function App() {
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -66,51 +67,53 @@ function App() {
 
   return (
     <LanguageProvider initialLanguage={languageCode}>
-      <div className="app">
-        <header className="app-header">
-          <div className="header-content">
-            <h1 className="app-title">Bible Compass</h1>
-            <button
-              className="language-button"
-              onClick={handleOpenLanguageSelector}
-              aria-label="Change language"
-            >
-              <div className="language-icon-wrapper">
-                <span className="language-icon">🌐</span>
-                <span className="language-code-mobile">
-                  {selectedLanguage?.code || "fra"}
+      <MediaPlayerProvider>
+        <div className="app">
+          <header className="app-header">
+            <div className="header-content">
+              <h1 className="app-title">Bible Compass</h1>
+              <button
+                className="language-button"
+                onClick={handleOpenLanguageSelector}
+                aria-label="Change language"
+              >
+                <div className="language-icon-wrapper">
+                  <span className="language-icon">🌐</span>
+                  <span className="language-code-mobile">
+                    {selectedLanguage?.code || "fra"}
+                  </span>
+                </div>
+                <span className="language-text-desktop">
+                  {getLanguageDisplayName()}
                 </span>
-              </div>
-              <span className="language-text-desktop">
-                {getLanguageDisplayName()}
-              </span>
-            </button>
-          </div>
-        </header>
+              </button>
+            </div>
+          </header>
 
-        <main className="main-content">
-          {!selectedStory && (
-            <NavigationGrid onStorySelect={setSelectedStory} />
-          )}
+          <main className="main-content">
+            {!selectedStory && (
+              <NavigationGrid onStorySelect={setSelectedStory} />
+            )}
 
-          {selectedStory && (
-            <StoryViewer
-              storyData={selectedStory}
-              onBack={() => setSelectedStory(null)}
-            />
-          )}
+            {selectedStory && (
+              <StoryViewer
+                storyData={selectedStory}
+                onBack={() => setSelectedStory(null)}
+              />
+            )}
 
-          {showLanguageSelector && (
-            <LanguageSelector
-              currentLanguage={selectedLanguage}
-              previewLanguage={previewLanguage}
-              onPreviewChange={setPreviewLanguage}
-              onClose={handleCloseLanguageSelector}
-              onApply={handleApplyLanguage}
-            />
-          )}
-        </main>
-      </div>
+            {showLanguageSelector && (
+              <LanguageSelector
+                currentLanguage={selectedLanguage}
+                previewLanguage={previewLanguage}
+                onPreviewChange={setPreviewLanguage}
+                onClose={handleCloseLanguageSelector}
+                onApply={handleApplyLanguage}
+              />
+            )}
+          </main>
+        </div>
+      </MediaPlayerProvider>
     </LanguageProvider>
   );
 }

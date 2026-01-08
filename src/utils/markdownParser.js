@@ -1,96 +1,8 @@
-/**
- * Parse a Bible reference string into book, chapter, and verse range
- * Examples: "GEN 1:1-5", "MAT 5:3", "REV 21:1-4", "GEN 1:20,22" (comma = non-consecutive verses)
- */
-const parseReference = (reference) => {
-  if (!reference) return null;
-
-  // Match pattern: BOOK CHAPTER:VERSES where VERSES can be "1", "1-5", or "1,3,5"
-  const match = reference.match(/^([A-Z0-9]+)\s+(\d+):(.+)$/i);
-  if (!match) {
-    console.log(`[parseReference] ✗ Failed to match pattern for: ${reference}`);
-    return null;
-  }
-
-  const book = match[1].toUpperCase();
-  const chapter = parseInt(match[2], 10);
-  const versePart = match[3];
-
-  // Check if it's comma-separated (individual verses)
-  if (versePart.includes(",")) {
-    const verses = versePart.split(",").map((v) => parseInt(v.trim(), 10));
-    return {
-      book,
-      chapter,
-      verses, // Array of specific verse numbers
-    };
-  }
-
-  // Check if it's a range (e.g., "1-5")
-  if (versePart.includes("-")) {
-    const [start, end] = versePart
-      .split("-")
-      .map((v) => parseInt(v.trim(), 10));
-    return {
-      book,
-      chapter,
-      verseStart: start,
-      verseEnd: end,
-    };
-  }
-
-  // Single verse
-  const verse = parseInt(versePart, 10);
-  return {
-    book,
-    chapter,
-    verseStart: verse,
-    verseEnd: verse,
-  };
-};
-
-/**
- * Extract specific verses from chapter verse array
- * @param {Array} verseArray - Array of verse objects with num and text
- * @param {number} verseStart - Start verse number (if range)
- * @param {number} verseEnd - End verse number (if range)
- * @param {Array} verses - Array of specific verse numbers (if comma-separated)
- */
-const extractVerses = (verseArray, verseStart, verseEnd, verses = null) => {
-  if (!verseArray) return null;
-
-  // If it's a string (old format), return it as-is
-  if (typeof verseArray === "string") {
-    return verseArray;
-  }
-
-  // If it's an array (new format from DBT API)
-  if (Array.isArray(verseArray)) {
-    let selectedVerses;
-
-    // Handle comma-separated verses (specific verse numbers)
-    if (verses && Array.isArray(verses)) {
-      selectedVerses = verseArray.filter((v) => verses.includes(v.num));
-    } else {
-      // Handle range
-      selectedVerses = verseArray.filter(
-        (v) => v.num >= verseStart && v.num <= verseEnd,
-      );
-    }
-
-    if (selectedVerses.length === 0) {
-      return null;
-    }
-
-    // Format without verse numbers
-    return selectedVerses
-      .map((v) => v.text)
-      .join(" ")
-      .trim();
-  }
-
-  return null;
-};
+import {
+  parseReference,
+  extractVerses,
+  getTextForReference,
+} from "./bibleUtils";
 
 /**
  * Replace <<<REF>>> markers in text with actual Bible verses from cache
@@ -225,6 +137,16 @@ export const parseMarkdownIntoSections = (markdown, chapterText = {}) => {
   sections.forEach((section) => {
     if (section.text) {
       section.text = replaceBibleReferences(section.text, chapterText);
+    }
+  });
+
+  // For sections with reference but no text, load the Bible text directly
+  sections.forEach((section) => {
+    if (section.reference && (!section.text || section.text.trim() === "")) {
+      const extractedText = getTextForReference(section.reference, chapterText);
+      if (extractedText) {
+        section.text = extractedText;
+      }
     }
   });
 

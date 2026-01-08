@@ -2,7 +2,12 @@ import React, { useState, useEffect } from "react";
 import "./StoryViewer.css";
 import BibleText from "./BibleText";
 import { parseMarkdownIntoSections } from "../utils/markdownParser";
+import { parseReference, getTestament } from "../utils/bibleUtils";
 import useLanguage from "../hooks/useLanguage";
+import useMediaPlayer from "../hooks/useMediaPlayer";
+import AudioPlayer from "./AudioPlayer";
+import MinimizedAudioPlayer from "./MinimizedAudioPlayer";
+import FullPlayingPane from "./FullPlayingPane";
 
 /**
  * Split a complex reference into individual reference parts
@@ -41,71 +46,6 @@ const splitReference = (reference) => {
 };
 
 /**
- * Parse a reference to extract book, chapter, verse info
- */
-const parseReference = (reference) => {
-  if (!reference) return null;
-
-  const match = reference.match(/^([A-Z0-9]+)\s+(\d+):(.+)$/i);
-  if (!match) return null;
-
-  const book = match[1].toUpperCase();
-  const chapter = parseInt(match[2], 10);
-  const versePart = match[3];
-
-  if (versePart.includes(",")) {
-    const verses = versePart.split(",").map((v) => parseInt(v.trim(), 10));
-    return { book, chapter, verses };
-  }
-
-  if (versePart.includes("-")) {
-    const [start, end] = versePart
-      .split("-")
-      .map((v) => parseInt(v.trim(), 10));
-    return { book, chapter, verseStart: start, verseEnd: end };
-  }
-
-  const verse = parseInt(versePart, 10);
-  return { book, chapter, verseStart: verse, verseEnd: verse };
-};
-
-/**
- * Get testament from book code
- */
-const getTestament = (bookCode) => {
-  const ntBooks = [
-    "MAT",
-    "MRK",
-    "LUK",
-    "JHN",
-    "ACT",
-    "ROM",
-    "1CO",
-    "2CO",
-    "GAL",
-    "EPH",
-    "PHP",
-    "COL",
-    "1TH",
-    "2TH",
-    "1TI",
-    "2TI",
-    "TIT",
-    "PHM",
-    "HEB",
-    "JAS",
-    "1PE",
-    "2PE",
-    "1JN",
-    "2JN",
-    "3JN",
-    "JUD",
-    "REV",
-  ];
-  return ntBooks.includes(bookCode.toUpperCase()) ? "nt" : "ot";
-};
-
-/**
  * Extract raw timing data for a specific reference
  */
 const extractRawTimingData = (
@@ -137,6 +77,8 @@ const extractRawTimingData = (
 function StoryViewer({ storyData, onBack }) {
   const { chapterText, audioUrls, loadAudioUrl, selectedLanguage } =
     useLanguage();
+  const { loadPlaylist, isMinimized, currentSegmentIndex, currentPlaylist } =
+    useMediaPlayer();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [parsedData, setParsedData] = useState(null);
@@ -229,6 +171,8 @@ function StoryViewer({ storyData, onBack }) {
           chaptersNeeded.get(audioKey).refs.push({
             ref,
             sectionNum: sectionIndex + 1,
+            imageUrl: section.imageUrl,
+            text: section.text,
           });
         }
       });
@@ -257,7 +201,7 @@ function StoryViewer({ storyData, onBack }) {
         const filename = fullFilename.split("?")[0];
 
         // Process each reference for this chapter
-        refs.forEach(({ ref, sectionNum }) => {
+        refs.forEach(({ ref, sectionNum, imageUrl, text }) => {
           const parsed = parseReference(ref);
           if (!parsed) return;
 
@@ -303,6 +247,8 @@ function StoryViewer({ storyData, onBack }) {
             book: refBook,
             chapter: refChapter,
             testament,
+            imageUrl,
+            text,
           });
         });
       }
@@ -318,6 +264,13 @@ function StoryViewer({ storyData, onBack }) {
     }
   }, [parsedData, audioUrls, selectedLanguage]);
 
+  // Load playlist and auto-play when audio data is ready
+  useEffect(() => {
+    if (audioPlaylistData && audioPlaylistData.length > 0) {
+      loadPlaylist(audioPlaylistData, { mode: "replace", autoPlay: true });
+    }
+  }, [audioPlaylistData, loadPlaylist]);
+
   if (loading) {
     return <div className="story-loading">Loading story...</div>;
   }
@@ -328,7 +281,7 @@ function StoryViewer({ storyData, onBack }) {
       <div className="story-viewer">
         <div className="story-header">
           <button className="back-button" onClick={onBack}>
-            ← Back to Stories
+            ←
           </button>
           <h1 className="story-title">{storyData.title}</h1>
         </div>
@@ -360,7 +313,7 @@ function StoryViewer({ storyData, onBack }) {
       <div className="story-viewer">
         <div className="story-header">
           <button className="back-button" onClick={onBack}>
-            ← Back to Stories
+            ←
           </button>
           <h1 className="story-title">{storyData.title}</h1>
         </div>
@@ -375,135 +328,70 @@ function StoryViewer({ storyData, onBack }) {
     <div className="story-viewer">
       <div className="story-header">
         <button className="back-button" onClick={onBack}>
-          ← Back to Stories
+          ←
         </button>
         <h1 className="story-title">{parsedData.title || storyData.title}</h1>
       </div>
-      <div className="story-content story-sections-vertical">
-        {/* Display consolidated audio playlist data before sections */}
-        {audioPlaylistData.length > 0 &&
-          (() => {
-            // Group entries by audio URL
-            const groupedByAudio = [];
-            let currentGroup = null;
 
-            audioPlaylistData.forEach((entry) => {
-              if (!currentGroup || currentGroup.audioUrl !== entry.audioUrl) {
-                // Start new group
-                currentGroup = {
-                  audioUrl: entry.audioUrl,
-                  audioFile: entry.audioFile,
-                  entries: [],
-                };
-                groupedByAudio.push(currentGroup);
-              }
-              currentGroup.entries.push(entry);
-            });
+      {/* Conditional rendering based on player state */}
+      {!isMinimized && currentPlaylist && currentPlaylist.length > 0 ? (
+        // FULL PLAYER MODE - show only playing pane
+        <div className="story-content story-content-full-player">
+          <FullPlayingPane />
+        </div>
+      ) : (
+        // DEFAULT MODE - show all story sections
+        <div className="story-content story-sections-vertical">
+          {parsedData.sections.map((section, index) => {
+            // Check if this section is currently playing
+            const isPlaying =
+              currentPlaylist &&
+              currentPlaylist.length > 0 &&
+              currentSegmentIndex >= 0 &&
+              currentPlaylist[currentSegmentIndex]?.sectionNum === index + 1;
 
             return (
               <div
-                className="audio-playlist-info"
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "0.85em",
-                  padding: "1em",
-                  backgroundColor: "#f5f5f5",
-                  marginBottom: "2em",
-                  borderRadius: "4px",
-                  whiteSpace: "pre-wrap",
-                }}
+                key={index}
+                className={`story-section ${isPlaying ? "story-section-playing" : ""}`}
               >
-                <div
-                  style={{
-                    fontWeight: "bold",
-                    marginBottom: "1em",
-                    fontSize: "1.1em",
-                  }}
-                >
-                  Audio Playlist Data (Grouped by Audio File):
-                </div>
-                {groupedByAudio.map((group, groupIndex) => (
-                  <div key={groupIndex} style={{ marginBottom: "2em" }}>
-                    <div
-                      style={{
-                        color: "#cc0066",
-                        fontWeight: "bold",
-                        marginBottom: "0.5em",
-                        borderBottom: "2px solid #cc0066",
-                        paddingBottom: "0.3em",
-                      }}
-                    >
-                      Audio: {group.audioFile}
+                <div className="story-section-image-wrapper">
+                  {section.imageUrl && (
+                    <img
+                      src={section.imageUrl}
+                      alt={`Section ${index + 1}`}
+                      className="story-image"
+                    />
+                  )}
+                  {section.reference && (
+                    <div className="story-section-ref-overlay">
+                      {section.reference}
                     </div>
-                    {group.entries.map((entry, entryIndex) => (
-                      <div
-                        key={entryIndex}
-                        style={{ marginBottom: "1.5em", paddingLeft: "1em" }}
-                      >
-                        <div
-                          style={{
-                            color: "#0066cc",
-                            fontWeight: "bold",
-                            marginBottom: "0.3em",
-                          }}
-                        >
-                          Section {entry.sectionNum} - {entry.reference}
-                        </div>
-                        {entry.timingData ? (
-                          <div style={{ color: "#333" }}>
-                            {JSON.stringify(entry.timingData, null, 2)}
-                          </div>
-                        ) : (
-                          <div style={{ color: "#999", fontStyle: "italic" }}>
-                            (No timing data available)
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                  )}
+                </div>
+                {section.text && section.text.trim() && (
+                  <div className="story-section-text">
+                    {section.text.split("\n").map((line, lineIndex) => {
+                      const trimmedLine = line.trim();
+                      if (!trimmedLine) return null;
+                      return (
+                        <p key={lineIndex} className="story-paragraph">
+                          {trimmedLine}
+                        </p>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
               </div>
             );
-          })()}
+          })}
+        </div>
+      )}
 
-        {parsedData.sections.map((section, index) => (
-          <div key={index} className="story-section">
-            <div className="story-section-image-wrapper">
-              {section.imageUrl && (
-                <img
-                  src={section.imageUrl}
-                  alt={`Section ${index + 1}`}
-                  className="story-image"
-                />
-              )}
-              {section.reference && (
-                <div className="story-section-ref-overlay">
-                  {section.reference}
-                </div>
-              )}
-            </div>
-            {section.reference && (
-              <BibleText
-                reference={section.reference}
-                className="story-reference-main"
-              />
-            )}
-            {section.text && section.text.trim() && (
-              <div className="story-section-text">
-                {section.text.split("\n").map((line, lineIndex) => {
-                  const trimmedLine = line.trim();
-                  if (!trimmedLine) return null;
-                  return (
-                    <p key={lineIndex} className="story-paragraph">
-                      {trimmedLine}
-                    </p>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Audio Player - show full or minimized based on state */}
+      {currentPlaylist &&
+        currentPlaylist.length > 0 &&
+        (isMinimized ? <MinimizedAudioPlayer /> : <AudioPlayer />)}
     </div>
   );
 }
