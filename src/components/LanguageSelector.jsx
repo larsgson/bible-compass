@@ -1,14 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import "./LanguageSelector.css";
 import useLanguage from "../hooks/useLanguage";
+import useTranslation from "../hooks/useTranslation";
 
-function LanguageSelector({
-  currentLanguage,
-  previewLanguage,
-  onPreviewChange,
-  onClose,
-  onApply,
-}) {
+function LanguageSelector({ selectedLanguage, onSelect, onClose }) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [languages, setLanguages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,27 +65,19 @@ function LanguageSelector({
     });
   }, [languages, searchTerm]);
 
-  const displayLanguage = previewLanguage || currentLanguage;
-  const hasChanges = previewLanguage && previewLanguage.code !== currentLanguage?.code;
-
   const handleLanguageClick = (language) => {
-    onPreviewChange(language);
+    onSelect(language);
+    onClose();
   };
 
   const handleClose = () => {
-    if (hasChanges) {
-      const confirmClose = window.confirm(
-        "You have unsaved language changes. Are you sure you want to close without applying?"
-      );
-      if (!confirmClose) return;
-    }
     onClose();
   };
 
   const getCategoryColor = (category) => {
     const colors = {
       "with-timecode": "#28a745",
-      "syncable": "#17a2b8",
+      syncable: "#17a2b8",
       "audio-only": "#ffc107",
       "text-only": "#6c757d",
       "incomplete-timecode": "#dc3545",
@@ -99,13 +87,16 @@ function LanguageSelector({
 
   return (
     <div className="language-selector-overlay" onClick={handleClose}>
-      <div className="language-selector-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="language-selector-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="language-selector-header">
-          <h2>Select Language</h2>
+          <h2>{t("languageSelector.title")}</h2>
           <button
             className="close-button"
             onClick={handleClose}
-            aria-label="Close"
+            aria-label={t("languageSelector.close")}
           >
             ✕
           </button>
@@ -117,32 +108,29 @@ function LanguageSelector({
             <div className="language-status">
               <span className="status-label">Current:</span>
               <span className="status-value">
-                {currentLanguage ? (
+                {selectedLanguage ? (
                   <>
-                    <strong>{currentLanguage.english || currentLanguage.code}</strong>
-                    {currentLanguage.vernacular && (
-                      <span className="vernacular"> ({currentLanguage.vernacular})</span>
+                    <strong>
+                      {selectedLanguage.english || selectedLanguage.code}
+                    </strong>
+                    {selectedLanguage.vernacular && (
+                      <span className="vernacular">
+                        {" "}
+                        ({selectedLanguage.vernacular})
+                      </span>
                     )}
-                    <span className="language-code"> [{currentLanguage.code}]</span>
+                    <span className="language-code">
+                      {" "}
+                      [{selectedLanguage.code}]
+                    </span>
                   </>
                 ) : (
-                  <span className="no-language">No language selected</span>
+                  <span className="no-language">
+                    {t("languageSelector.noLanguageSelected")}
+                  </span>
                 )}
               </span>
             </div>
-
-            {hasChanges && (
-              <div className="language-status preview">
-                <span className="status-label">Preview:</span>
-                <span className="status-value highlight">
-                  <strong>{previewLanguage.english || previewLanguage.code}</strong>
-                  {previewLanguage.vernacular && (
-                    <span className="vernacular"> ({previewLanguage.vernacular})</span>
-                  )}
-                  <span className="language-code"> [{previewLanguage.code}]</span>
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Search Box */}
@@ -150,7 +138,7 @@ function LanguageSelector({
             <input
               type="text"
               className="language-search"
-              placeholder="Search by language name or code..."
+              placeholder={t("languageSelector.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               autoFocus
@@ -160,27 +148,27 @@ function LanguageSelector({
           {/* Language List */}
           <div className="language-list">
             {loading ? (
-              <div className="loading-state">Loading languages...</div>
+              <div className="loading-state">
+                {t("languageSelector.loadingLanguages")}
+              </div>
             ) : filteredLanguages.length === 0 ? (
               <div className="empty-state">
                 No languages found matching "{searchTerm}"
               </div>
             ) : (
               filteredLanguages.map((language) => {
-                const isActive = currentLanguage?.code === language.code;
-                const isPreview = previewLanguage?.code === language.code;
+                const isActive = selectedLanguage?.code === language.code;
 
                 return (
                   <div
                     key={language.code}
-                    className={`language-item ${isActive ? "active" : ""} ${isPreview ? "preview" : ""}`}
+                    className={`language-item ${isActive ? "active" : ""}`}
                     onClick={() => handleLanguageClick(language)}
                   >
                     <div className="language-info">
                       <div className="language-name">
                         {language.english || language.code}
                         {isActive && <span className="check-icon"> ✓</span>}
-                        {isPreview && !isActive && <span className="preview-icon"> ➤</span>}
                       </div>
                       {language.vernacular && (
                         <div className="language-vernacular">
@@ -191,7 +179,9 @@ function LanguageSelector({
                     </div>
                     <div
                       className="language-category-indicator"
-                      style={{ backgroundColor: getCategoryColor(language.category) }}
+                      style={{
+                        backgroundColor: getCategoryColor(language.category),
+                      }}
                       title={language.category}
                     />
                   </div>
@@ -202,29 +192,13 @@ function LanguageSelector({
         </div>
 
         {/* Footer with Actions */}
+        {/* Action Buttons */}
         <div className="language-selector-footer">
-          {hasChanges ? (
-            <>
-              <div className="change-message">
-                Change from <strong>{currentLanguage?.english || currentLanguage?.code}</strong> to{" "}
-                <strong>{previewLanguage?.english || previewLanguage?.code}</strong>?
-              </div>
-              <div className="action-buttons">
-                <button className="button-secondary" onClick={handleClose}>
-                  Cancel
-                </button>
-                <button className="button-primary" onClick={onApply}>
-                  Apply Changes
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="action-buttons single">
-              <button className="button-secondary" onClick={onClose}>
-                Close
-              </button>
-            </div>
-          )}
+          <div className="action-buttons single">
+            <button className="button-secondary" onClick={handleClose}>
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

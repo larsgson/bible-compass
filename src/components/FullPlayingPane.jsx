@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import useMediaPlayer from "../hooks/useMediaPlayer";
+import useTranslation from "../hooks/useTranslation";
 import "./FullPlayingPane.css";
 
 const FullPlayingPane = () => {
+  const { t } = useTranslation();
   const {
     currentPlaylist,
     isPlaying,
@@ -56,7 +58,7 @@ const FullPlayingPane = () => {
         <img
           key={currentSegmentIndex}
           src={currentSectionData.imageUrl}
-          alt={`Section ${currentSectionData.sectionNum}`}
+          alt={`${t("fullPlayingPane.sectionAlt")} ${currentSectionData.sectionNum}`}
           className={`full-playing-pane-image ${
             isPlaying ? `ken-burns-${animationVariant}` : ""
           }`}
@@ -69,7 +71,11 @@ const FullPlayingPane = () => {
       <button
         className="full-playing-pane-toggle-btn"
         onClick={toggleText}
-        aria-label={showText ? "Hide text" : "Show text"}
+        aria-label={
+          showText
+            ? t("fullPlayingPane.hideText")
+            : t("fullPlayingPane.showText")
+        }
       >
         <svg
           width="20"

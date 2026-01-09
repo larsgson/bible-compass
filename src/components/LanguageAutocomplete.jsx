@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "./Autocomplete.css";
+import useTranslation from "../hooks/useTranslation";
 
 function LanguageAutocomplete({
   languages,
@@ -8,6 +9,7 @@ function LanguageAutocomplete({
   placeholder = "Search languages...",
   disabled = false,
 }) {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredLanguages, setFilteredLanguages] = useState([]);
@@ -78,7 +80,7 @@ function LanguageAutocomplete({
       case "ArrowDown":
         e.preventDefault();
         setHighlightedIndex((prev) =>
-          prev < filteredLanguages.length - 1 ? prev + 1 : prev
+          prev < filteredLanguages.length - 1 ? prev + 1 : prev,
         );
         break;
       case "ArrowUp":
@@ -126,8 +128,7 @@ function LanguageAutocomplete({
               className={`autocomplete-item ${
                 index === highlightedIndex ? "highlighted" : ""
               } ${
-                selectedLanguage &&
-                selectedLanguage.code === lang.code
+                selectedLanguage && selectedLanguage.code === lang.code
                   ? "selected"
                   : ""
               }`}
@@ -148,7 +149,9 @@ function LanguageAutocomplete({
       )}
       {showDropdown && inputValue.trim() && filteredLanguages.length === 0 && (
         <div className="autocomplete-dropdown">
-          <div className="autocomplete-no-results">No languages found</div>
+          <div className="autocomplete-no-results">
+            {t("languageSelector.noLanguagesFound")}
+          </div>
         </div>
       )}
     </div>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import useMediaPlayer from "../hooks/useMediaPlayer";
+import useTranslation from "../hooks/useTranslation";
 import "./AudioPlayer.css";
 
 const AudioPlayer = () => {
+  const { t } = useTranslation();
   const {
     currentPlaylist,
     isPlaying,
@@ -34,7 +36,8 @@ const AudioPlayer = () => {
   }
 
   const currentSegment = getCurrentSegment();
-  const currentReference = currentSegment?.reference || "Story Audio";
+  const currentReference =
+    currentSegment?.reference || t("audioPlayer.defaultReference");
   const currentVerse = getCurrentVerse();
 
   const handlePlayPause = () => {
@@ -96,13 +99,13 @@ const AudioPlayer = () => {
         <div className="audio-player-info">
           <div className="audio-player-title">
             {currentSegmentIndex + 1}/{currentPlaylist.length} -{" "}
-            {currentVerse || "Loading..."}
+            {currentVerse || t("audioPlayer.loadingVerse")}
           </div>
         </div>
         <button
           className="audio-player-minimize-btn"
           onClick={handleMinimize}
-          aria-label="Minimize player"
+          aria-label={t("audioPlayer.minimize")}
         >
           <svg
             width="24"
@@ -121,7 +124,9 @@ const AudioPlayer = () => {
           className={`audio-player-btn audio-player-btn-play ${isPlaying ? "playing" : ""}`}
           onClick={handlePlayPause}
           disabled={isLoading}
-          aria-label={isPlaying ? "Pause" : "Play"}
+          aria-label={
+            isPlaying ? t("audioPlayer.pause") : t("audioPlayer.play")
+          }
         >
           {isPlaying ? (
             <svg
@@ -150,7 +155,7 @@ const AudioPlayer = () => {
           className="audio-player-btn audio-player-btn-stop"
           onClick={handleStop}
           disabled={isLoading}
-          aria-label="Stop"
+          aria-label={t("audioPlayer.stop")}
         >
           <svg
             width="20"
@@ -177,7 +182,7 @@ const AudioPlayer = () => {
               onTouchStart={handleSeekMouseDown}
               onTouchEnd={handleSeekMouseUp}
               disabled={isLoading || !totalDuration}
-              aria-label="Seek"
+              aria-label={t("audioPlayer.seek")}
             />
             <div
               className="audio-player-progress-fill"
@@ -206,7 +211,9 @@ const AudioPlayer = () => {
       </div>
 
       {isLoading && (
-        <div className="audio-player-loading">Loading audio...</div>
+        <div className="audio-player-loading">
+          {t("audioPlayer.loadingAudio")}
+        </div>
       )}
     </div>
   );

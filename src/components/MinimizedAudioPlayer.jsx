@@ -1,8 +1,10 @@
 import React, { useMemo } from "react";
 import useMediaPlayer from "../hooks/useMediaPlayer";
+import useTranslation from "../hooks/useTranslation";
 import "./MinimizedAudioPlayer.css";
 
 const MinimizedAudioPlayer = () => {
+  const { t } = useTranslation();
   const {
     currentPlaylist,
     isPlaying,
@@ -50,7 +52,7 @@ const MinimizedAudioPlayer = () => {
         <div className="minimized-audio-player-image">
           <img
             src={currentImageUrl}
-            alt={`Section ${currentSegmentIndex + 1}`}
+            alt={`${t("fullPlayingPane.sectionAlt")} ${currentSegmentIndex + 1}`}
           />
         </div>
       )}
@@ -67,7 +69,9 @@ const MinimizedAudioPlayer = () => {
           <button
             className="minimized-audio-player-btn"
             onClick={handlePlayPause}
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={
+              isPlaying ? t("audioPlayer.pause") : t("audioPlayer.play")
+            }
           >
             {isPlaying ? (
               <svg

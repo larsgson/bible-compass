@@ -339,7 +339,16 @@ export const MediaPlayerProvider = ({ children }) => {
       } = options;
 
       if (!playlistData || !playlistData.length) {
-        console.warn("Empty playlist provided");
+        console.warn("Empty playlist provided - clearing current playlist");
+        // Clear the current playlist
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        updateState({
+          currentPlaylist: [],
+          currentSegmentIndex: -1,
+          queue: [],
+        });
         return;
       }
 

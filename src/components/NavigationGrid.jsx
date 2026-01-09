@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
 import "./NavigationGrid.css";
+import useTranslation from "../hooks/useTranslation";
+import useLanguage from "../hooks/useLanguage";
+import AvailabilityBadge from "./AvailabilityBadge";
+import {
+  getStoryAvailability,
+  getCategoryAvailability,
+} from "../utils/storyAvailability";
 
 function NavigationGrid({ onStorySelect }) {
+  const { t } = useTranslation();
+  const { getStoryMetadata, languageData, selectedLanguage, storyMetadata } =
+    useLanguage();
   const [navigationPath, setNavigationPath] = useState([]);
   const [currentItems, setCurrentItems] = useState([]);
   const [currentLevel, setCurrentLevel] = useState("collection");
@@ -9,7 +19,7 @@ function NavigationGrid({ onStorySelect }) {
 
   useEffect(() => {
     loadCurrentLevel();
-  }, [navigationPath]);
+  }, [navigationPath, storyMetadata, selectedLanguage]);
 
   const loadCurrentLevel = async () => {
     setLoading(true);
@@ -25,12 +35,43 @@ function NavigationGrid({ onStorySelect }) {
             const catResponse = await fetch(url);
             const catText = await catResponse.text();
             const catData = parseToml(catText);
+
+            // Check if all stories in this category are missing content
+            const storyIds = catData.stories
+              ? catData.stories.map((s) => s.id)
+              : [];
+
+            // Build storyMetadataCache for these stories
+            const storyMetadataCache = {};
+            storyIds.forEach((storyId) => {
+              const metadata = getStoryMetadata(storyId);
+              if (metadata) {
+                storyMetadataCache[storyId] = metadata;
+              }
+            });
+
+            const categoryAvail = getCategoryAvailability(
+              storyIds,
+              storyMetadataCache,
+              languageData[selectedLanguage],
+            );
+
+            // Show empty badge only if ALL stories are empty (no content at all)
+            let categoryStatus = null;
+            if (
+              categoryAvail.total > 0 &&
+              categoryAvail.empty === categoryAvail.total
+            ) {
+              categoryStatus = "empty";
+            }
+
             return {
               id: catData.id,
               title: catData.title,
               image: catData.image?.filename,
               path: categoryDir,
               level: "category",
+              availability: categoryStatus ? { status: categoryStatus } : null,
             };
           }),
         );
@@ -45,14 +86,24 @@ function NavigationGrid({ onStorySelect }) {
         const text = await response.text();
         const data = parseToml(text);
 
-        const storiesData = data.stories.map((story) => ({
-          id: story.id,
-          title: story.title,
-          image: story.image || data.image?.filename,
-          path: `${categoryPath}/${story.id}.md`,
-          level: "story",
-          storyImage: story.image,
-        }));
+        const storiesData = data.stories.map((story) => {
+          const storyId = story.id;
+          const metadata = getStoryMetadata(storyId);
+          const availability = getStoryAvailability(
+            metadata,
+            languageData[selectedLanguage],
+          );
+
+          return {
+            id: story.id,
+            title: story.title,
+            image: story.image || data.image?.filename,
+            path: `${categoryPath}/${story.id}.md`,
+            level: "story",
+            storyImage: story.image,
+            availability: availability,
+          };
+        });
 
         setCurrentItems(storiesData);
         setCurrentLevel("category");
@@ -187,7 +238,9 @@ function NavigationGrid({ onStorySelect }) {
   };
 
   if (loading) {
-    return <div className="navigation-loading">Loading...</div>;
+    return (
+      <div className="navigation-loading">{t("navigationGrid.loading")}</div>
+    );
   }
 
   return (
@@ -202,26 +255,36 @@ function NavigationGrid({ onStorySelect }) {
       </div>
 
       <div className={`navigation-grid ${currentLevel}`}>
-        {currentItems.map((item) => (
-          <div
-            key={item.path}
-            className={`navigation-item ${item.level}`}
-            onClick={() => handleItemClick(item)}
-          >
-            {item.image && (
-              <img
-                src={
-                  item.image.startsWith("http")
-                    ? item.image
-                    : `/navIcons/${item.image}`
-                }
-                alt={item.title}
-                className="navigation-image"
-              />
-            )}
-            <div className="navigation-item-title">{item.title}</div>
-          </div>
-        ))}
+        {currentItems.map((item) => {
+          return (
+            <div
+              key={item.path}
+              className={`navigation-item ${item.level}`}
+              onClick={() => handleItemClick(item)}
+            >
+              {item.image && (
+                <div style={{ position: "relative" }}>
+                  <img
+                    src={
+                      item.image.startsWith("http")
+                        ? item.image
+                        : `/navIcons/${item.image}`
+                    }
+                    alt={item.title}
+                    className="navigation-image"
+                  />
+                  {item.availability && (
+                    <AvailabilityBadge
+                      status={item.availability.status}
+                      size="small"
+                    />
+                  )}
+                </div>
+              )}
+              <div className="navigation-item-title">{item.title}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

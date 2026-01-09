@@ -5,6 +5,7 @@ import { parseMarkdownIntoSections } from "../utils/markdownParser";
 import { parseReference, getTestament } from "../utils/bibleUtils";
 import useLanguage from "../hooks/useLanguage";
 import useMediaPlayer from "../hooks/useMediaPlayer";
+import useTranslation from "../hooks/useTranslation";
 import AudioPlayer from "./AudioPlayer";
 import MinimizedAudioPlayer from "./MinimizedAudioPlayer";
 import FullPlayingPane from "./FullPlayingPane";
@@ -75,8 +76,15 @@ const extractRawTimingData = (
 };
 
 function StoryViewer({ storyData, onBack }) {
-  const { chapterText, audioUrls, loadAudioUrl, selectedLanguage } =
-    useLanguage();
+  const { t } = useTranslation();
+  const {
+    chapterText,
+    audioUrls,
+    loadAudioUrl,
+    selectedLanguage,
+    languageData,
+    getStoryMetadata,
+  } = useLanguage();
   const { loadPlaylist, isMinimized, currentSegmentIndex, currentPlaylist } =
     useMediaPlayer();
   const [content, setContent] = useState("");
@@ -85,6 +93,11 @@ function StoryViewer({ storyData, onBack }) {
   const [error, setError] = useState(null);
   const [chapterCount, setChapterCount] = useState(0);
   const [audioPlaylistData, setAudioPlaylistData] = useState([]);
+  const [storyCapabilities, setStoryCapabilities] = useState({
+    hasTimecode: false,
+    usesOT: false,
+    usesNT: false,
+  });
 
   useEffect(() => {
     loadStory();
@@ -103,6 +116,7 @@ function StoryViewer({ storyData, onBack }) {
   const loadStory = async () => {
     setLoading(true);
     try {
+      // Always load and parse (browser caches markdown, parsing is fast)
       const response = await fetch(`/templates/OBS/${storyData.path}`);
 
       if (!response.ok) {
@@ -125,11 +139,6 @@ function StoryViewer({ storyData, onBack }) {
       const parsed = parseMarkdownIntoSections(text, chapterText);
       setParsedData(parsed);
       setChapterCount(Object.keys(chapterText).length);
-
-      // Collect and process all references for audio playlist
-      if (parsed && parsed.sections && parsed.sections.length > 0) {
-        collectAudioPlaylistData(parsed.sections);
-      }
 
       setError(null);
     } catch (err) {
@@ -257,22 +266,119 @@ function StoryViewer({ storyData, onBack }) {
     setAudioPlaylistData(allPlaylistEntries);
   };
 
-  // Re-collect audio playlist when sections change or audio becomes available
-  useEffect(() => {
-    if (parsedData && parsedData.sections && parsedData.sections.length > 0) {
-      collectAudioPlaylistData(parsedData.sections);
-    }
-  }, [parsedData, audioUrls, selectedLanguage]);
+  // Analyze what features are available for this story based on its references
+  const analyzeStoryCapabilities = (sections) => {
+    // Try to get cached testament analysis first (lightweight metadata)
+    const storyId = storyData.id || storyData.path;
+    const cachedMetadata = getStoryMetadata(storyId);
 
-  // Load playlist and auto-play when audio data is ready
+    // Get testament info from pre-cached metadata
+    const testamentsInfo = cachedMetadata?.testaments || {
+      usesOT: true,
+      usesNT: true,
+    };
+
+    const langData = languageData[selectedLanguage];
+    if (!langData) {
+      setStoryCapabilities({
+        hasTimecode: false,
+        usesOT: testamentsInfo.usesOT,
+        usesNT: testamentsInfo.usesNT,
+      });
+      return;
+    }
+
+    // Check if ALL required testaments have audio with timecode
+    // Audio player requires timecode to build playlist
+    let hasTimecode = true;
+    const testamentsToCheck = [];
+    if (testamentsInfo.usesOT) testamentsToCheck.push("ot");
+    if (testamentsInfo.usesNT) testamentsToCheck.push("nt");
+
+    for (const testament of testamentsToCheck) {
+      const testamentData = langData[testament];
+
+      if (!testamentData) {
+        hasTimecode = false;
+        break;
+      }
+
+      // Check audio availability
+      if (!testamentData.audioFilesetId) {
+        hasTimecode = false;
+        break;
+      }
+
+      // Check timecode availability - required for playlist
+      const hasTimecodeForTestament = [
+        "with-timecode",
+        "audio-with-timecode",
+      ].includes(testamentData.audioCategory);
+
+      if (!hasTimecodeForTestament) {
+        hasTimecode = false;
+        break;
+      }
+    }
+
+    const capabilities = {
+      hasTimecode,
+      usesOT: testamentsInfo.usesOT,
+      usesNT: testamentsInfo.usesNT,
+    };
+
+    setStoryCapabilities(capabilities);
+  };
+
+  // Analyze story capabilities when parsed data or language data changes
   useEffect(() => {
-    if (audioPlaylistData && audioPlaylistData.length > 0) {
+    if (
+      parsedData &&
+      parsedData.sections &&
+      parsedData.sections.length > 0 &&
+      selectedLanguage &&
+      languageData &&
+      languageData[selectedLanguage]
+    ) {
+      analyzeStoryCapabilities(parsedData.sections);
+    }
+  }, [parsedData, selectedLanguage, languageData]);
+
+  // Re-collect audio playlist when sections change or timecode becomes available
+  useEffect(() => {
+    if (
+      parsedData &&
+      parsedData.sections &&
+      parsedData.sections.length > 0 &&
+      storyCapabilities.hasTimecode
+    ) {
+      collectAudioPlaylistData(parsedData.sections);
+    } else if (!storyCapabilities.hasTimecode) {
+      // Clear playlist if timecode is not available
+      setAudioPlaylistData([]);
+    }
+  }, [parsedData, audioUrls, selectedLanguage, storyCapabilities.hasTimecode]);
+
+  // Load playlist and auto-play when audio data is ready (only if timecode available)
+  useEffect(() => {
+    if (audioPlaylistData.length > 0 && storyCapabilities.hasTimecode) {
       loadPlaylist(audioPlaylistData, { mode: "replace", autoPlay: true });
     }
-  }, [audioPlaylistData, loadPlaylist]);
+  }, [audioPlaylistData, loadPlaylist, storyCapabilities.hasTimecode]);
+
+  // Separate effect to clear playlist when timecode becomes unavailable
+  useEffect(() => {
+    if (
+      !storyCapabilities.hasTimecode &&
+      currentPlaylist &&
+      currentPlaylist.length > 0
+    ) {
+      loadPlaylist([], { mode: "replace", autoPlay: false });
+    }
+  }, [storyCapabilities.hasTimecode, currentPlaylist, loadPlaylist]);
 
   if (loading) {
-    return <div className="story-loading">Loading story...</div>;
+    return <div className="story-loading">{t("storyViewer.loadingStory")}</div>;
   }
 
   // Error state - story not found
@@ -296,11 +402,9 @@ function StoryViewer({ storyData, onBack }) {
         </div>
         <div className="story-content">
           <div className="story-error">
-            <h2>Story Not Available</h2>
-            <p>This story content has not been added to the collection yet.</p>
-            <p className="story-error-detail">
-              Please check back later or select another story.
-            </p>
+            <h2>{t("storyViewer.errorTitle")}</h2>
+            <p>{t("storyViewer.errorMessage")}</p>
+            <p className="story-error-detail">{t("storyViewer.errorDetail")}</p>
           </div>
         </div>
       </div>
@@ -318,7 +422,7 @@ function StoryViewer({ storyData, onBack }) {
           <h1 className="story-title">{storyData.title}</h1>
         </div>
         <div className="story-content">
-          <p>No sections available</p>
+          <p>{t("storyViewer.noSections")}</p>
         </div>
       </div>
     );
@@ -335,7 +439,7 @@ function StoryViewer({ storyData, onBack }) {
 
       {/* Conditional rendering based on player state */}
       {!isMinimized && currentPlaylist && currentPlaylist.length > 0 ? (
-        // FULL PLAYER MODE - show only playing pane
+        // FULL PLAYER MODE - show only playing pane (requires timecode to have playlist)
         <div className="story-content story-content-full-player">
           <FullPlayingPane />
         </div>
@@ -388,7 +492,7 @@ function StoryViewer({ storyData, onBack }) {
         </div>
       )}
 
-      {/* Audio Player - show full or minimized based on state */}
+      {/* Audio Player - show full or minimized based on state (requires timecode) */}
       {currentPlaylist &&
         currentPlaylist.length > 0 &&
         (isMinimized ? <MinimizedAudioPlayer /> : <AudioPlayer />)}

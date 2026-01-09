@@ -26,6 +26,104 @@ const FRENCH_FILESET_CANDIDATES = {
 };
 
 const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
+  // Helper function to parse TOML files
+  const parseToml = (text) => {
+    const lines = text.split("\n");
+    const result = { stories: [] };
+    let currentStory = null;
+    let inImage = false;
+    let inArray = false;
+    let arrayKey = null;
+    let arrayValues = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+
+      if (line.startsWith("#") || line === "") continue;
+
+      // Check for section headers
+      if (line.startsWith("[") && line.endsWith("]")) {
+        if (line === "[image]") {
+          inImage = true;
+          result.image = {};
+          continue;
+        }
+
+        if (line === "[[stories]]") {
+          if (currentStory) {
+            result.stories.push(currentStory);
+          }
+          currentStory = {};
+          inImage = false;
+          continue;
+        }
+
+        // Reset section flags for other sections
+        inImage = false;
+        continue;
+      }
+
+      // Check if this is the start of a multi-line array
+      if (line.match(/^(\w+)\s*=\s*\[$/)) {
+        const match = line.match(/^(\w+)\s*=\s*\[$/);
+        arrayKey = match[1];
+        inArray = true;
+        arrayValues = [];
+        continue;
+      }
+
+      // Check if this is the end of a multi-line array
+      if (inArray && line === "]") {
+        result[arrayKey] = arrayValues;
+        inArray = false;
+        arrayKey = null;
+        arrayValues = [];
+        continue;
+      }
+
+      // Check if we're inside a multi-line array
+      if (inArray) {
+        let cleanValue = line.replace(/,$/g, ""); // Remove trailing comma
+        cleanValue = cleanValue.replace(/^"/, "").replace(/"$/, ""); // Remove quotes
+        if (cleanValue) {
+          arrayValues.push(cleanValue);
+        }
+        continue;
+      }
+
+      const match = line.match(/^(\w+)\s*=\s*(.+)$/);
+      if (match) {
+        const key = match[1];
+        let value = match[2].trim();
+
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1);
+        } else if (value.startsWith("[") && value.endsWith("]")) {
+          value = value
+            .slice(1, -1)
+            .split(",")
+            .map((v) => v.trim().replace(/"/g, ""));
+        } else if (!isNaN(value)) {
+          value = parseInt(value);
+        }
+
+        if (inImage) {
+          result.image[key] = value;
+        } else if (currentStory) {
+          currentStory[key] = value;
+        } else {
+          result[key] = value;
+        }
+      }
+    }
+
+    if (currentStory) {
+      result.stories.push(currentStory);
+    }
+
+    return result;
+  };
+
   const [state, setState] = useState({
     selectedLanguage: initialLanguage, // Set from prop or default to English
     availableLanguages: [],
@@ -34,6 +132,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
     chapterText: {}, // Loaded chapter text: { "GEN.1": "chapter content...", ... }
     audioUrls: {}, // Cached audio URLs: { "lang-testament-BOOK.chapter": "url", ... }
     timingFileCache: {}, // Cached timing files: { "lang-testament": timingData }
+    storyMetadata: {}, // Lightweight story metadata cache: { storyId: { testaments, title } } - ~50KB for 1000 stories vs ~10MB if caching parsed sections
     isLoadingSummary: false,
     summaryError: null,
     isLoadingChapter: false,
@@ -70,6 +169,14 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
       return newState;
     });
   };
+
+  // Get story metadata from cache
+  const getStoryMetadata = useCallback(
+    (storyId) => {
+      return state.storyMetadata[storyId] || null;
+    },
+    [state.storyMetadata],
+  );
 
   // Load summary.json to get available languages
   const loadSummary = useCallback(async () => {
@@ -186,50 +293,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
   // Load bible-data.json for a specific language using manifest
   const loadLanguageData = useCallback(
     async (langCode) => {
-      // Special handling for English and French - use auto-probe
-      if (langCode === "eng" || langCode === "fra") {
-        const langData = {};
-        const candidates =
-          langCode === "eng"
-            ? ENGLISH_FILESET_CANDIDATES
-            : FRENCH_FILESET_CANDIDATES;
-
-        for (const testament of ["ot", "nt"]) {
-          const testamentCandidates = candidates[testament];
-          if (!testamentCandidates || testamentCandidates.length === 0) {
-            continue;
-          }
-          const probeResult = await probeFilesets(
-            testamentCandidates,
-            testament,
-          );
-
-          if (probeResult && probeResult.success) {
-            langData[testament] = {
-              category: "api-probed",
-              distinctId: probeResult.filesetId,
-              filesetId: probeResult.filesetId,
-              needsET: probeResult.needsET,
-              basePath: null, // Not using local files
-            };
-          }
-        }
-
-        if (Object.keys(langData).length > 0) {
-          const newLanguageData = {
-            ...languageDataRef.current,
-            [langCode]: langData,
-          };
-          languageDataRef.current = newLanguageData;
-          updateState({
-            languageData: newLanguageData,
-          });
-        }
-
-        return null;
-      }
-
-      // Original logic for non-French languages
+      // Try manifest-based loading first for all languages
       try {
         // Load the manifest to find which categories have this language
         const manifestPath = `/ALL-langs-data/manifest.json`;
@@ -256,11 +320,12 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
               "text-only",
             ];
 
-            // Audio priority order
+            // Audio priority order (with-timecode is highest priority!)
             const audioPriorityOrder = [
-              "audio-with-timecode",
               "with-timecode",
+              "audio-with-timecode",
               "syncable",
+              "text-only",
               "audio-only",
             ];
 
@@ -296,9 +361,17 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
 
                         // Check if it's a suffix (ends with .txt) or full ID
                         if (textValue.endsWith(".txt")) {
-                          // It's a suffix - remove .txt and append to distinctId
                           const suffix = textValue.replace(".txt", "");
-                          filesetId = distinctId + suffix;
+
+                          // Determine if it's a full ID or a suffix based on length
+                          // Full text IDs are typically 6+ characters, suffixes are shorter (like "N_ET", ".txt")
+                          if (suffix.length >= 6) {
+                            // It's a full fileset ID
+                            filesetId = suffix;
+                          } else {
+                            // It's a suffix - concatenate with distinctId
+                            filesetId = distinctId + suffix;
+                          }
                         } else {
                           // It's a full fileset ID - use as is
                           filesetId = textValue;
@@ -311,8 +384,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
                       testamentData.category = category;
                       testamentData.distinctId = distinctId;
                       testamentData.filesetId = filesetId;
-                      testamentData.basePath = `/ALL-langs-data/${testament}/${category}/${langCode}/${distinctId}`;
-                      break;
+                      // basePath is NOT set - no local chapter JSON files exist, text loads from API
                       break; // Found text data
                     }
                   } catch (err) {
@@ -346,9 +418,17 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
 
                         // Check if it's a suffix (ends with .mp3) or full ID
                         if (audioValue.endsWith(".mp3")) {
-                          // It's a suffix - remove .mp3 and append to distinctId
                           const suffix = audioValue.replace(".mp3", "");
-                          audioFilesetId = distinctId + suffix;
+
+                          // Determine if it's a full ID or a suffix based on length
+                          // Full audio IDs are typically 10+ characters, suffixes are shorter (like "N1DA", "N2DA")
+                          if (suffix.length >= 10) {
+                            // It's a full fileset ID
+                            audioFilesetId = suffix;
+                          } else {
+                            // It's a suffix - concatenate with distinctId
+                            audioFilesetId = distinctId + suffix;
+                          }
                         } else {
                           // It's a full fileset ID - use as is
                           audioFilesetId = audioValue;
@@ -388,6 +468,52 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
 
         return null;
       } catch (error) {
+        console.error(
+          `[loadLanguageData] Error loading ${langCode} from manifest:`,
+          error,
+        );
+
+        // Fallback to auto-probe for eng/fra if manifest fails
+        if (langCode === "eng" || langCode === "fra") {
+          const langData = {};
+          const candidates =
+            langCode === "eng"
+              ? ENGLISH_FILESET_CANDIDATES
+              : FRENCH_FILESET_CANDIDATES;
+
+          for (const testament of ["ot", "nt"]) {
+            const testamentCandidates = candidates[testament];
+            if (!testamentCandidates || testamentCandidates.length === 0) {
+              continue;
+            }
+            const probeResult = await probeFilesets(
+              testamentCandidates,
+              testament,
+            );
+
+            if (probeResult && probeResult.success) {
+              langData[testament] = {
+                category: "api-probed",
+                distinctId: probeResult.filesetId,
+                filesetId: probeResult.filesetId,
+                needsET: probeResult.needsET,
+                basePath: null,
+              };
+            }
+          }
+
+          if (Object.keys(langData).length > 0) {
+            const newLanguageData = {
+              ...languageDataRef.current,
+              [langCode]: langData,
+            };
+            languageDataRef.current = newLanguageData;
+            updateState({
+              languageData: newLanguageData,
+            });
+          }
+        }
+
         return null;
       }
     },
@@ -439,7 +565,9 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
       updateState({ isLoadingChapter: true });
 
       try {
-        // Get fileset ID from language data (use filesetId if available, otherwise distinctId)
+        let verseArray = [];
+
+        // Load text from DBT API
         const filesetId = langData.filesetId || langData.distinctId;
 
         if (!filesetId) {
@@ -448,10 +576,8 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
           );
         }
 
-        // For auto-probed languages, the filesetId already includes _ET if needed
-        let response;
-        let url = `/.netlify/functions/dbt-proxy?type=text&fileset_id=${filesetId}&book_id=${bookId}&chapter_id=${chapterNum}`;
-        response = await fetch(url);
+        const url = `/.netlify/functions/dbt-proxy?type=text&fileset_id=${filesetId}&book_id=${bookId}&chapter_id=${chapterNum}`;
+        const response = await fetch(url);
 
         if (!response.ok) {
           throw new Error(`API request failed: ${response.status}`);
@@ -460,8 +586,6 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
         const data = await response.json();
 
         // Extract verse array from API response
-        // DBT API returns array of verse objects with "verse_text" and "verse_start" fields
-        let verseArray = [];
         if (data.data && Array.isArray(data.data)) {
           verseArray = data.data.map((verse) => ({
             num: parseInt(verse.verse_start, 10),
@@ -498,7 +622,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
     [state, loadLanguageData],
   );
 
-  // Preload Bible references from all markdown files
+  // Preload Bible references from all markdown files and analyze testament usage per story
   const preloadBibleReferences = useCallback(async () => {
     // Prevent multiple preload attempts
     if (preloadStartedRef.current) {
@@ -507,45 +631,39 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
     preloadStartedRef.current = true;
 
     try {
-      // Get list of all markdown files from manifest
-      const response = await fetch("/templates/OBS/manifest.json");
-      if (!response.ok) {
-        throw new Error("Could not load manifest");
+      // Get list of all categories from main index
+      const indexResponse = await fetch("/templates/OBS/index.toml");
+      if (!indexResponse.ok) {
+        throw new Error("Could not load OBS index");
       }
+      const indexText = await indexResponse.text();
+      const indexData = parseToml(indexText);
+      const categories = indexData.categories || [];
 
-      const manifest = await response.json();
-      const stories = manifest.stories || [];
-
-      const allReferences = new Set();
-
-      // Scan all markdown files for references
-      for (const storyPath of stories) {
+      // Collect all story paths from all categories
+      const storyPaths = [];
+      for (const categoryDir of categories) {
         try {
-          const mdResponse = await fetch(`/templates/OBS/${storyPath}`);
-          if (mdResponse.ok) {
-            const content = await mdResponse.text();
-            const refMatches = content.matchAll(/<<<REF:\s*([^>]+)>>>/g);
-            for (const match of refMatches) {
-              allReferences.add(match[1].trim());
+          const catResponse = await fetch(
+            `/templates/OBS/${categoryDir}/index.toml`,
+          );
+          if (catResponse.ok) {
+            const catText = await catResponse.text();
+            const catData = parseToml(catText);
+            if (catData.stories) {
+              catData.stories.forEach((story) => {
+                storyPaths.push(`${categoryDir}/${story.id}.md`);
+              });
             }
           }
         } catch (err) {
-          // Continue with next file
+          console.error(`Error loading category ${categoryDir}:`, err);
         }
       }
 
-      // Parse references and extract unique chapters
-      const chaptersToLoad = new Set();
-      for (const ref of allReferences) {
-        const match = ref.match(/^([A-Z0-9]+)\s+(\d+):/i);
-        if (match) {
-          const book = match[1].toUpperCase();
-          const chapter = parseInt(match[2], 10);
-          chaptersToLoad.add(`${book}.${chapter}`);
-        }
-      }
+      const allReferences = new Set();
+      const storyTestaments = {}; // Track testament usage per story
 
-      // Load all chapters in background
       const ntBooks = [
         "MAT",
         "MRK",
@@ -576,6 +694,87 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
         "REV",
       ];
 
+      // Scan all markdown files for references and analyze testament usage
+      for (const storyPath of storyPaths) {
+        // Extract story ID from path (e.g., "03-Exodus/09.md" -> "09")
+        const pathMatch = storyPath.match(/\/(\d+)\.md$/);
+        const storyId = pathMatch ? pathMatch[1] : null;
+
+        if (!storyId) continue;
+
+        try {
+          const mdResponse = await fetch(`/templates/OBS/${storyPath}`);
+          if (mdResponse.ok) {
+            const content = await mdResponse.text();
+
+            // Initialize testament tracking for this story
+            const testamentsUsed = new Set();
+
+            // Extract all references for this story
+            const refMatches = content.matchAll(/<<<REF:\s*([^>]+)>>>/g);
+            for (const match of refMatches) {
+              const ref = match[1].trim();
+              allReferences.add(ref);
+
+              // Determine testament for this reference
+              const bookMatch = ref.match(/^([A-Z0-9]+)\s+/i);
+              if (bookMatch) {
+                const book = bookMatch[1].toUpperCase();
+                const testament = ntBooks.includes(book) ? "nt" : "ot";
+                testamentsUsed.add(testament);
+              }
+            }
+
+            // Cache testament info for this story
+            storyTestaments[storyId] = {
+              usesOT: testamentsUsed.has("ot"),
+              usesNT: testamentsUsed.has("nt"),
+            };
+          } else {
+            // Story file doesn't exist - mark as having no testaments (will show as empty)
+            storyTestaments[storyId] = {
+              usesOT: false,
+              usesNT: false,
+            };
+          }
+        } catch (err) {
+          // Error fetching story - mark as having no testaments
+          storyTestaments[storyId] = {
+            usesOT: false,
+            usesNT: false,
+          };
+        }
+      }
+
+      // Update state with story testament metadata
+      const newStoryMetadata = {};
+      for (const [storyId, testaments] of Object.entries(storyTestaments)) {
+        newStoryMetadata[storyId] = {
+          testaments,
+          title: null, // Title can be added later when story is opened
+          cachedAt: Date.now(),
+        };
+      }
+
+      updateState({
+        storyMetadata: {
+          ...state.storyMetadata,
+          ...newStoryMetadata,
+        },
+      });
+
+      // Parse references and extract unique chapters
+      const chaptersToLoad = new Set();
+      for (const ref of allReferences) {
+        const match = ref.match(/^([A-Z0-9]+)\s+(\d+):/i);
+        if (match) {
+          const book = match[1].toUpperCase();
+          const chapter = parseInt(match[2], 10);
+          chaptersToLoad.add(`${book}.${chapter}`);
+        }
+      }
+
+      // Load all chapters in background
       for (const chapterKey of chaptersToLoad) {
         const [book, chapter] = chapterKey.split(".");
         const testament = ntBooks.includes(book) ? "nt" : "ot";
@@ -594,7 +793,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
       console.error("Error preloading Bible references:", error);
       preloadStartedRef.current = false; // Reset on error so it can retry
     }
-  }, [loadChapter]);
+  }, [loadChapter, state.storyMetadata]);
 
   // Load audio URL for a specific chapter (cache only what's requested)
   const loadAudioUrl = useCallback(
@@ -687,7 +886,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
             try {
               const audioCategory = langData.audioCategory;
               const distinctId = langData.distinctId || selectedLanguage;
-              const langCode = distinctId.substring(0, 3).toLowerCase();
+              const langCode = selectedLanguage; // Use the actual language code (e.g., "eng")
 
               const timingPath = `/ALL-timings/${testament}/${audioCategory}/${langCode}/${distinctId}/timing.json`;
 
@@ -703,7 +902,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
                 });
               }
             } catch (timecodeError) {
-              // Silently continue without timing data
+              // Continue without timing data
             }
           }
         }
@@ -850,6 +1049,7 @@ const LanguageProvider = ({ children, initialLanguage = "fra" }) => {
     probeFileset,
     probeFilesets,
     preloadBibleReferences,
+    getStoryMetadata,
   };
 
   return (
