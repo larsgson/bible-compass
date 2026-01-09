@@ -20,11 +20,8 @@ const replaceBibleReferences = (text, chapterText) => {
     const fullMatch = match[0];
     const reference = match[1].trim();
 
-    console.log(`[markdownParser] Found reference in text: ${reference}`);
-
     const parsed = parseReference(reference);
     if (!parsed) {
-      console.log(`[markdownParser] ✗ Could not parse reference: ${reference}`);
       continue;
     }
 
@@ -42,23 +39,8 @@ const replaceBibleReferences = (text, chapterText) => {
       if (extractedVerses) {
         result = result.replace(fullMatch, extractedVerses);
         replacementCount++;
-        console.log(
-          `[markdownParser] ✓ Replaced ${reference} with ${extractedVerses.length} characters of Bible text`,
-        );
-      } else {
-        console.log(
-          `[markdownParser] ✗ Could not extract verses from ${chapterKey}`,
-        );
       }
-    } else {
-      console.log(
-        `[markdownParser] ✗ Chapter ${chapterKey} not in cache (available: ${Object.keys(chapterText).join(", ")})`,
-      );
     }
-  }
-
-  if (replacementCount > 0) {
-    console.log(`[markdownParser] Total replacements: ${replacementCount}`);
   }
 
   return result;
@@ -74,11 +56,6 @@ export const parseMarkdownIntoSections = (markdown, chapterText = {}) => {
   if (!markdown) {
     return { title: "", sections: [] };
   }
-
-  console.log(
-    `[markdownParser] Parsing markdown with ${Object.keys(chapterText).length} cached chapters:`,
-    Object.keys(chapterText).join(", "),
-  );
 
   const sections = [];
   const lines = markdown.split("\n");

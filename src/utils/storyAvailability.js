@@ -44,19 +44,33 @@ export const getStoryAvailability = (storyMetadata, languageData) => {
   const missingTestaments = [];
   const availableTestaments = [];
 
-  // Check text availability for each needed testament
+  // Check text OR audio availability for each needed testament
   for (const testament of testamentsNeeded) {
     const testamentData = languageData[testament];
 
-    // Check if testament has TEXT fileset
-    if (!testamentData || !testamentData.filesetId) {
+    if (!testamentData) {
       missingTestaments.push(testament);
-    } else {
+      continue;
+    }
+
+    // Check if testament has TEXT fileset
+    const hasText = !!testamentData.filesetId;
+
+    // Check if testament has AUDIO with timecode (can play audio stories without text)
+    const hasAudioWithTimecode =
+      testamentData.audioFilesetId &&
+      (testamentData.audioCategory === "audio-with-timecode" ||
+        testamentData.audioCategory === "with-timecode");
+
+    // Testament is available if it has either text OR audio with timecode
+    if (hasText || hasAudioWithTimecode) {
       availableTestaments.push(testament);
+    } else {
+      missingTestaments.push(testament);
     }
   }
 
-  // Determine status: empty if ANY required testament is missing text, otherwise full
+  // Determine status: empty if ANY required testament is missing content, otherwise full
   const status = missingTestaments.length > 0 ? "empty" : "full";
   const hasText = missingTestaments.length === 0;
 

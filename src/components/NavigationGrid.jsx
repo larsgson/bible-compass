@@ -8,7 +8,11 @@ import {
   getCategoryAvailability,
 } from "../utils/storyAvailability";
 
-function NavigationGrid({ onStorySelect }) {
+function NavigationGrid({
+  onStorySelect,
+  showEmptyContent,
+  onToggleEmptyContent,
+}) {
   const { t } = useTranslation();
   const { getStoryMetadata, languageData, selectedLanguage, storyMetadata } =
     useLanguage();
@@ -216,6 +220,7 @@ function NavigationGrid({ onStorySelect }) {
       setNavigationPath([...navigationPath, item]);
     } else if (item.level === "story") {
       onStorySelect({
+        id: item.id,
         path: item.path,
         image: item.storyImage,
         title: item.title,
@@ -243,6 +248,21 @@ function NavigationGrid({ onStorySelect }) {
     );
   }
 
+  // Filter items based on showEmptyContent state
+  const visibleItems = showEmptyContent
+    ? currentItems
+    : currentItems.filter(
+        (item) => !item.availability || item.availability.status !== "empty",
+      );
+
+  // Count total empty items (for showing button)
+  const emptyItemCount = currentItems.filter(
+    (item) => item.availability && item.availability.status === "empty",
+  ).length;
+
+  // Count currently hidden items (for display)
+  const hiddenCount = currentItems.length - visibleItems.length;
+
   return (
     <div className="navigation-container">
       <div className="navigation-header">
@@ -252,10 +272,23 @@ function NavigationGrid({ onStorySelect }) {
           </button>
         )}
         <h1 className="navigation-title">{getCurrentTitle()}</h1>
+        {emptyItemCount > 0 && (
+          <button
+            className="empty-content-toggle"
+            onClick={onToggleEmptyContent}
+            title={
+              showEmptyContent
+                ? `Hide ${emptyItemCount} stories without text`
+                : `Show ${emptyItemCount} stories without text`
+            }
+          >
+            {showEmptyContent ? `▦${emptyItemCount}` : `👁‍🗨${emptyItemCount}`}
+          </button>
+        )}
       </div>
 
       <div className={`navigation-grid ${currentLevel}`}>
-        {currentItems.map((item) => {
+        {visibleItems.map((item) => {
           return (
             <div
               key={item.path}

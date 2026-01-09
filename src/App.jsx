@@ -7,26 +7,11 @@ import { LanguageProvider } from "./context/LanguageContext";
 import { MediaPlayerProvider } from "./context/MediaPlayerContext";
 import useTranslation from "./hooks/useTranslation";
 
-function AppContent() {
+function AppContent({ selectedLanguage, onLanguageSelect }) {
   const { t } = useTranslation();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    const saved = localStorage.getItem("selectedLanguage");
-    return saved ? JSON.parse(saved) : null;
-  });
   const [selectedStory, setSelectedStory] = useState(null);
-
-  // Persist language selection to localStorage
-  useEffect(() => {
-    if (selectedLanguage) {
-      localStorage.setItem(
-        "selectedLanguage",
-        JSON.stringify(selectedLanguage),
-      );
-    } else {
-      localStorage.removeItem("selectedLanguage");
-    }
-  }, [selectedLanguage]);
+  const [showEmptyContent, setShowEmptyContent] = useState(false);
 
   const handleOpenLanguageSelector = () => {
     setShowLanguageSelector(true);
@@ -37,7 +22,7 @@ function AppContent() {
   };
 
   const handleLanguageSelect = (language) => {
-    setSelectedLanguage(language);
+    onLanguageSelect(language);
     setShowLanguageSelector(false);
   };
 
@@ -88,7 +73,13 @@ function AppContent() {
 
         <main className="main-content">
           {!selectedStory && (
-            <NavigationGrid onStorySelect={setSelectedStory} />
+            <NavigationGrid
+              onStorySelect={setSelectedStory}
+              showEmptyContent={showEmptyContent}
+              onToggleEmptyContent={() =>
+                setShowEmptyContent(!showEmptyContent)
+              }
+            />
           )}
           {selectedStory && (
             <StoryViewer storyData={selectedStory} onBack={handleBackToGrid} />
@@ -113,11 +104,26 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
+  // Persist language selection to localStorage
+  useEffect(() => {
+    if (selectedLanguage) {
+      localStorage.setItem(
+        "selectedLanguage",
+        JSON.stringify(selectedLanguage),
+      );
+    } else {
+      localStorage.removeItem("selectedLanguage");
+    }
+  }, [selectedLanguage]);
+
   const languageCode = selectedLanguage?.code || "fra";
 
   return (
     <LanguageProvider initialLanguage={languageCode}>
-      <AppContent />
+      <AppContent
+        selectedLanguage={selectedLanguage}
+        onLanguageSelect={setSelectedLanguage}
+      />
     </LanguageProvider>
   );
 }

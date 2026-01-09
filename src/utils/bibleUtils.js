@@ -52,7 +52,6 @@ export const parseReference = (reference) => {
   // Match pattern: BOOK CHAPTER:VERSES where VERSES can be "1", "1-5", or "1,3,5"
   const match = reference.match(/^([A-Z0-9]+)\s+(\d+):(.+)$/i);
   if (!match) {
-    console.log(`[parseReference] ✗ Failed to match pattern for: ${reference}`);
     return null;
   }
 

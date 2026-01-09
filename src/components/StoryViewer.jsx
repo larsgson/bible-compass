@@ -103,6 +103,16 @@ function StoryViewer({ storyData, onBack }) {
     loadStory();
   }, [storyData]);
 
+  // Reload story when language changes
+  useEffect(() => {
+    if (storyData) {
+      // Clear playlist when language changes
+      loadPlaylist([], { mode: "replace", autoPlay: false });
+      // Reload story content
+      loadStory();
+    }
+  }, [selectedLanguage]);
+
   // Reparse when chapter count changes (not on every chapterText update)
   useEffect(() => {
     const newCount = Object.keys(chapterText).length;
@@ -199,7 +209,7 @@ function StoryViewer({ storyData, onBack }) {
         try {
           audioEntry = await loadAudioUrl(book, chapter, testament);
         } catch (err) {
-          console.log(`Failed to load audio for ${audioKey}`);
+          // Audio not available for this chapter
         }
       }
 
@@ -279,6 +289,7 @@ function StoryViewer({ storyData, onBack }) {
     };
 
     const langData = languageData[selectedLanguage];
+
     if (!langData) {
       setStoryCapabilities({
         hasTimecode: false,

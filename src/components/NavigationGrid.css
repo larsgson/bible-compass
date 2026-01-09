@@ -31,6 +31,39 @@
     font-size: 28px;
     color: #333;
     margin: 0;
+    flex: 1;
+}
+
+.empty-content-toggle {
+    padding: 6px 10px;
+    font-size: 14px;
+    background-color: #e9ecef;
+    color: #6c757d;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+    opacity: 0.8;
+}
+
+.empty-content-toggle:hover {
+    background-color: #dee2e6;
+    border-color: #adb5bd;
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.empty-content-toggle:active {
+    transform: scale(0.95);
+    background-color: #ced4da;
 }
 
 .navigation-grid {

@@ -215,7 +215,9 @@ export const MediaPlayerProvider = ({ children }) => {
   // Load audio for a specific segment
   const loadSegmentAudio = useCallback(
     (segmentOrIndex, seekOffset = 0) => {
-      if (!audioRef.current) return;
+      if (!audioRef.current) {
+        return;
+      }
 
       const audio = audioRef.current;
       const segmentMap = segmentMapRef.current;
@@ -223,14 +225,17 @@ export const MediaPlayerProvider = ({ children }) => {
       // Handle both segment object and index
       let segment;
       if (typeof segmentOrIndex === "number") {
-        if (segmentOrIndex < 0 || segmentOrIndex >= segmentMap.length) return;
+        if (segmentOrIndex < 0 || segmentOrIndex >= segmentMap.length) {
+          return;
+        }
         segment = segmentMap[segmentOrIndex];
       } else {
         segment = segmentOrIndex;
       }
 
-      if (!segment) return;
-
+      if (!segment) {
+        return;
+      }
       const needsNewFile = audio.src !== segment.audioUrl;
       const targetTime = segment.startTimestamp + seekOffset;
 
@@ -241,10 +246,17 @@ export const MediaPlayerProvider = ({ children }) => {
 
         const handleLoaded = () => {
           audio.currentTime = targetTime;
+          updateState({ isLoading: false });
           audio.removeEventListener("loadeddata", handleLoaded);
         };
 
+        const handleError = (e) => {
+          updateState({ isLoading: false, error: "Failed to load audio" });
+          audio.removeEventListener("error", handleError);
+        };
+
         audio.addEventListener("loadeddata", handleLoaded);
+        audio.addEventListener("error", handleError);
       } else {
         // Same file, just seek
         audio.currentTime = targetTime;
@@ -339,7 +351,6 @@ export const MediaPlayerProvider = ({ children }) => {
       } = options;
 
       if (!playlistData || !playlistData.length) {
-        console.warn("Empty playlist provided - clearing current playlist");
         // Clear the current playlist
         if (audioRef.current) {
           audioRef.current.pause();
@@ -422,7 +433,6 @@ export const MediaPlayerProvider = ({ children }) => {
         });
       })
       .catch((err) => {
-        console.error("Failed to play:", err);
         updateState({
           error: "Failed to play audio",
         });
